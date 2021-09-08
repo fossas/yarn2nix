@@ -88,4 +88,7 @@ data Remote
   | DirectoryLocal
   { dirLocalPath :: Text -- ^ (relative) path to directory on the local machine
   } 
+  | DirectoryLocalSymLinked {
+    dirLocalSymPath :: Text -- ^ path of package folder that is symbolically linked.
+  }
   deriving (Eq, Show)

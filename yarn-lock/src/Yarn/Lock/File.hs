@@ -71,6 +71,12 @@ type Val = V.Validation (NE.NonEmpty ConversionError)
 hasFileLocatorInSpec :: T.PackageKey -> Bool
 hasFileLocatorInSpec pkgKey = "file:" `Text.isPrefixOf` (T.npmVersionSpec pkgKey)
 
+-- | True if package key has link: directive in it's spec. Otherwise False. 
+-- For example, "@good-morning/8-am-music@link:./dir": ... 
+-- 
+hasLinkLocatorInSpec :: T.PackageKey -> Bool
+hasLinkLocatorInSpec pkgKey = "link:" `Text.isPrefixOf` (T.npmVersionSpec pkgKey)
+
 -- | Parse an AST 'PackageFields' to a 'T.Package', which has
 -- the needed fields resolved.
 astToPackage :: NE.NonEmpty T.PackageKey -> Parse.PackageFields
@@ -135,7 +141,7 @@ astToPackage pkgKeys = V.validationToEither . validate
         -- implementing the heuristics of searching for types;
         -- it should of course not lead to false positives
         -- see tests/TestLock.hs
-        $ checkGit <|> checkFileLocal <|> checkFile <|> checkDir
+        $ checkGit <|> checkFileLocal <|> checkFile <|> checkDir <|> checkDirSymLinked
       where
         mToV :: e -> Maybe a -> V.Validation e a
         mToV err mb = case mb of
@@ -197,6 +203,16 @@ astToPackage pkgKeys = V.validationToEither . validate
           case dir of
             Nothing -> Nothing
             Just pkgDir -> pure (T.DirectoryLocal pkgDir)
+
+        -- | Valid package without resolved field, for package directory that is linked (symbolically)
+        -- Refer to: https://classic.yarnpkg.com/en/docs/cli/link/
+        checkDirSymLinked :: Maybe T.Remote
+        checkDirSymLinked = do
+          let keyWithLinkLocator = find hasLinkLocatorInSpec (NE.toList pkgKeys)
+          let dir = stripPrefix "link:" . T.npmVersionSpec =<< keyWithLinkLocator
+          case dir of
+            Nothing -> Nothing
+            Just pkgDir -> pure (T.DirectoryLocalSymLinked pkgDir)
 
         -- | ensure the prefix is removed
         noPrefix :: Text -> Text -> Text

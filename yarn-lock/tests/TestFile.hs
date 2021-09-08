@@ -29,6 +29,10 @@ sampleKey = NE.fromList [ T.PackageKey (T.SimplePackageKey "mock-key") "mock-spe
 sampleKeyWithDir :: NE.NonEmpty T.PackageKey
 sampleKeyWithDir = NE.fromList [ T.PackageKey (T.SimplePackageKey "mock-key") "file:./mock-dir"]
 
+sampleKeyWithSymDir :: NE.NonEmpty T.PackageKey
+sampleKeyWithSymDir = NE.fromList [ T.PackageKey (T.SimplePackageKey "mock-key") "link:./mock-sym-dir"]
+
+
 emptyAst :: [(Text, Either Text Parse.PackageFields)] -> Parse.PackageFields
 emptyAst = Parse.PackageFields . M.fromList
 
@@ -100,6 +104,15 @@ case_localdir = do
       T.DirectoryLocal {..} -> do
         assertEqual "local directory path" "./mock-dir" dirLocalPath
       a -> assertFailure ("should be FileLocal, is " <> show a)
+
+case_symlinked_dir :: Assertion
+case_symlinked_dir = do
+  let good = minimalAst $ []
+  astToPackageSuccessWithKey sampleKeyWithSymDir good
+    <&> T.remote >>= \case
+      T.DirectoryLocalSymLinked {..} -> do
+        assertEqual "local directory path" "./mock-sym-dir" dirLocalSymPath
+      a -> assertFailure ("should be DirectoryLocalSymLinked, is " <> show a)
 
 case_missingField :: Assertion
 case_missingField = do
