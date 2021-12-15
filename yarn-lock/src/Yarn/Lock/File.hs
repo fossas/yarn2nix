@@ -36,6 +36,7 @@ import Control.Monad ((>=>))
 import Control.Applicative ((<|>))
 import Data.Either.Validation (Validation(Success, Failure))
 import Data.Traversable (for)
+import Data.Maybe (isJust)
 
 -- | Press a list of packages into the lockfile structure.
 --
@@ -134,19 +135,30 @@ astToPackage pkgKeys = V.validationToEither . validate
 
     -- | Applying heuristics to the field contents to find the
     -- correct remote type.
-    checkRemote :: Parse.PackageFields -> Val T.Remote
+    checkRemote :: Parse.PackageFields -> Val (Maybe T.Remote)
     checkRemote fs =
-      -- any error is replaced by the generic remote error
-      mToV (pure UnknownRemoteType)
-        -- implementing the heuristics of searching for types;
-        -- it should of course not lead to false positives
-        -- see tests/TestLock.hs
-        $ checkGit <|> checkFileLocal <|> checkFile <|> checkDir <|> checkDirSymLinked
+      case hasResolvedField of
+        -- "resolved" is optional per yarn specification
+        -- Reference: https://github.com/yarnpkg/yarn/blob/master/src/lockfile/index.js#L45
+        -- without resolved field, ascertain if package is directory, or has symbolic link.
+        False -> Success (checkDir <|> checkDirSymLinked)
+        True ->
+          -- any error is replaced by the generic remote error
+          mToV (pure UnknownRemoteType)
+            -- implementing the heuristics of searching for types;
+            -- it should of course not lead to false positives
+            -- see tests/TestLock.hs
+            $ checkGit <|> checkFileLocal <|> checkFile <|> checkDir <|> checkDirSymLinked
       where
-        mToV :: e -> Maybe a -> V.Validation e a
+
+        mToV :: e -> Maybe a -> V.Validation e (Maybe a)
         mToV err mb = case mb of
           Nothing -> Failure err
-          Just a -> Success a
+          Just a -> Success (Just a)
+
+        hasResolvedField :: Bool
+        hasResolvedField = isJust <$> vToM $ getField text "resolved" fs
+
         vToM :: Val a -> Maybe a
         vToM = \case
           Success a -> Just a
