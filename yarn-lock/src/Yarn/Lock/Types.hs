@@ -58,7 +58,7 @@ data Keyed a = Keyed (NE.NonEmpty PackageKey) a
 -- | The actual npm package with dependencies and a way to download.
 data Package = Package
   { version              :: Text         -- ^ resolved, specific version
-  , remote               :: Remote
+  , remote               :: Maybe Remote
   , dependencies         :: [PackageKey] -- ^ list of dependencies
   , optionalDependencies :: [PackageKey] -- ^ list of optional dependencies
   } deriving (Eq, Show)

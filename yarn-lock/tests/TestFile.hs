@@ -47,7 +47,7 @@ case_gitRemote = do
           <> hasUid `orEmpty` ("uid", Left ref)
   let gitRemIs parsed (url', ref') = parsed
         <&> T.remote >>= \case
-          T.GitRemote{..} -> do
+          Just T.GitRemote{..} -> do
             assertEqual "url url" url' gitRepoUrl
             assertEqual "url ref" ref' gitRev
           a -> assertFailure ("should be GitRemote, is " <> show a)
@@ -67,13 +67,13 @@ case_fileRemote = do
           [ ("resolved", Left $ "https://gnu.org/stallmanstoe") ]
   astToPackageSuccess good
     <&> T.remote >>= \case
-      T.FileRemote{..} -> do
+      Just T.FileRemote{..} -> do
         assertEqual "remote url" "https://gnu.org/stallmanstoe" fileUrl
         assertEqual "file sha" sha fileSha1
       a -> assertFailure ("should be FileRemote, is " <> show a)
   astToPackageSuccess goodNoIntegrity
     <&> T.remote >>= \case
-      T.FileRemoteNoIntegrity{..} -> assertEqual "remote url" "https://gnu.org/stallmanstoe" fileNoIntegrityUrl
+      Just T.FileRemoteNoIntegrity{..} -> assertEqual "remote url" "https://gnu.org/stallmanstoe" fileNoIntegrityUrl
       a -> assertFailure ("should be FileRemote, is " <> show a)
 
 case_fileLocal :: Assertion
@@ -86,13 +86,13 @@ case_fileLocal = do
           , Left $ "file:../extensions/jupyterlab-toc-0.6.0.tgz") ]
   astToPackageSuccess good
     <&> T.remote >>= \case
-      T.FileLocal{..} -> do
+      Just T.FileLocal{..} -> do
         assertEqual "file path" "../extensions/jupyterlab-toc-0.6.0.tgz" fileLocalPath
         assertEqual "file sha" "393fe" fileLocalSha1
       a -> assertFailure ("should be FileLocal, is " <> show a)
   astToPackageSuccess goodNoIntegrity
     <&> T.remote >>= \case
-      T.FileLocalNoIntegrity{..} -> do
+      Just T.FileLocalNoIntegrity{..} -> do
         assertEqual "file path" "../extensions/jupyterlab-toc-0.6.0.tgz" fileLocalNoIntegrityPath
       a -> assertFailure ("should be FileLocal, is " <> show a)
 
@@ -101,7 +101,7 @@ case_localdir = do
   let good = minimalAst $ []
   astToPackageSuccessWithKey sampleKeyWithDir good
     <&> T.remote >>= \case
-      T.DirectoryLocal {..} -> do
+      Just T.DirectoryLocal {..} -> do
         assertEqual "local directory path" "./mock-dir" dirLocalPath
       a -> assertFailure ("should be FileLocal, is " <> show a)
 
@@ -110,7 +110,7 @@ case_symlinked_dir = do
   let good = minimalAst $ []
   astToPackageSuccessWithKey sampleKeyWithSymDir good
     <&> T.remote >>= \case
-      T.DirectoryLocalSymLinked {..} -> do
+      Just T.DirectoryLocalSymLinked {..} -> do
         assertEqual "local directory path" "./mock-sym-dir" dirLocalSymPath
       a -> assertFailure ("should be DirectoryLocalSymLinked, is " <> show a)
 
@@ -118,7 +118,7 @@ case_missingField :: Assertion
 case_missingField = do
   astToPackageFailureWith
     (File.MissingField "version"
-     NE.:| [File.UnknownRemoteType]) (emptyAst [])
+     NE.:| []) (emptyAst [])
 
 astToPackageSuccessWithKey :: NE.NonEmpty T.PackageKey -> Parse.PackageFields -> IO T.Package
 astToPackageSuccessWithKey key ast = case File.astToPackage key ast of
